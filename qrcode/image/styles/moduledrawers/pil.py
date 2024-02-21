@@ -264,3 +264,61 @@ class HorizontalBarsDrawer(StyledPilQRModuleDrawer):
             self.img._img.paste(
                 right, (box[0][0] + self.half_width, box[0][1] + self.delta)
             )
+
+class HorizontalSquareBarsDrawer(StyledPilQRModuleDrawer):
+    """
+    Draws horizontally contiguous groups of modules as long rounded rectangles,
+    with gaps between neighboring bands (the size of these gaps is inversely
+    proportional to the vertical_shrink).
+    """
+
+    needs_neighbors = True
+
+    def __init__(self, vertical_shrink=0.8):
+        self.vertical_shrink = vertical_shrink
+
+    def initialize(self, *args, **kwargs):
+        super().initialize(*args, **kwargs)
+        self.half_width = int(self.img.box_size / 2)
+        self.delta = int((1 - self.vertical_shrink) * self.half_width)
+        self.setup_edges()
+
+    def setup_edges(self):
+        mode = self.img.mode
+        back_color = self.img.color_mask.back_color
+        front_color = self.img.paint_color
+
+        width = self.half_width
+        height = width * 2
+        shrunken_height = int(height * self.vertical_shrink)
+        self.SQUARE = Image.new(mode, (width, shrunken_height), front_color)
+
+        self.SQUARE_UP = Image.new(mode, (width, shrunken_height), front_color)
+        fake_width = width * ANTIALIASING_FACTOR
+        fake_height = height * ANTIALIASING_FACTOR
+        base = Image.new(
+            mode, (fake_width, fake_height), back_color
+        )  # make something 4x bigger for antialiasing
+        base_draw = ImageDraw.Draw(base)
+        base_draw.ellipse((0, 0, fake_width * 2, fake_height ), fill=front_color)
+
+        self.ROUND_LEFT = base.resize((width, shrunken_height), Image.Resampling.LANCZOS)
+        self.ROUND_RIGHT = self.ROUND_LEFT.transpose(Image.Transpose.FLIP_LEFT_RIGHT)
+
+    def drawrect(self, box, is_active: "ActiveWithNeighbors"):
+        if is_active:
+            # find rounded edges
+            left_rounded = False
+            right_rounded = False
+            # left_rounded = not is_active.W
+            # right_rounded = not is_active.E
+            print(is_active.W, is_active.E)
+            # if  is_active.W == True or is_active.E == True:
+            if True:
+                left = self.ROUND_LEFT if left_rounded else self.SQUARE
+                right = self.ROUND_RIGHT if right_rounded else self.SQUARE
+                self.img._img.paste(left, (box[0][0], box[0][1] + self.delta))
+                self.img._img.paste(
+                    right, (box[0][0] + self.half_width, box[0][1] + self.delta)
+                )
+
